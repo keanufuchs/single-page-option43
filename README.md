@@ -16,6 +16,9 @@ Single-page web app that generates Cisco DHCP Option 43 hex for classic WLC disc
 4. Enter the WLC IPv4 address.
 5. Copy the hex output or the full IOS config.
 
+## Example Host
+- https://single-page-option43.vercel.app/
+
 ## Notes
 - F3 requires the AP mode byte (Meraki `01`, Catalyst `02`).
 - IOS config output uses the CIDR input to derive network and mask.
