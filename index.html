@@ -133,6 +133,17 @@
                   placeholder="WIFI_APS"
                 />
               </label>
+              <label class="block sm:col-span-2">
+                <span class="text-sm font-semibold">Reverse Decode (Option 43 Hex)</span>
+                <input
+                  id="reverseHex"
+                  class="sketch-input mt-2 w-full px-3 py-2 font-mono"
+                  placeholder="f3050a010b1f02"
+                />
+                <p class="text-xs mt-1 text-slate-600">
+                  Paste full hex (with or without dots/spaces) to populate fields.
+                </p>
+              </label>
             </div>
           </div>
 
@@ -316,6 +327,7 @@
         leaseHours: document.getElementById("leaseHours"),
         leaseMinutes: document.getElementById("leaseMinutes"),
         poolName: document.getElementById("poolName"),
+        reverseHex: document.getElementById("reverseHex"),
       };
 
       function isValidIp(ip) {
@@ -383,6 +395,71 @@
       function getWlcIps() {
         const fields = [...document.querySelectorAll("[data-wlc]")];
         return fields.map((field) => field.value.trim()).filter(Boolean);
+      }
+
+      function normalizeHex(raw) {
+        return raw
+          .replace(/option\\s+43\\s+hex/i, "")
+          .replace(/[^a-fA-F0-9]/g, "")
+          .toLowerCase();
+      }
+
+      function hexToIp(hex) {
+        if (hex.length !== 8) return "";
+        const octets = hex.match(/.{1,2}/g) || [];
+        if (octets.length !== 4) return "";
+        return octets.map((oct) => parseInt(oct, 16)).join(".");
+      }
+
+      function applyReverseDecode() {
+        const raw = inputs.reverseHex.value.trim();
+        if (!raw) return;
+
+        const normalized = normalizeHex(raw);
+        if (normalized.length < 4) return;
+
+        const type = normalized.slice(0, 2);
+        if (type === "f1") {
+          modeEl.value = "F1";
+        } else if (type === "f3") {
+          modeEl.value = "F3";
+        } else {
+          return;
+        }
+
+        const lengthHex = normalized.slice(2, 4);
+        const lengthBytes = parseInt(lengthHex, 16);
+        if (Number.isNaN(lengthBytes) || lengthBytes < 4) return;
+
+        let ipHex = "";
+        let modeHex = "";
+        if (modeEl.value === "F1") {
+          ipHex = normalized.slice(4, 4 + lengthBytes * 2);
+        } else {
+          ipHex = normalized.slice(4, 4 + (lengthBytes - 1) * 2);
+          modeHex = normalized.slice(
+            4 + (lengthBytes - 1) * 2,
+            4 + lengthBytes * 2
+          );
+        }
+
+        const ip = hexToIp(ipHex.slice(0, 8));
+        const wlcField = document.querySelector("[data-wlc]");
+        if (wlcField && ip) {
+          wlcField.value = ip;
+        }
+
+        if (modeEl.value === "F3") {
+          if (modeHex === "01" || modeHex === "02") {
+            apModeEl.value = modeHex;
+          } else {
+            apModeEl.value = "";
+          }
+        } else {
+          apModeEl.value = "";
+        }
+
+        updateOutputs();
       }
 
       function buildHex() {
@@ -584,6 +661,13 @@
       attachListeners();
       attachWlcListeners();
       handleCopyButtons();
+      inputs.reverseHex.addEventListener("change", applyReverseDecode);
+      inputs.reverseHex.addEventListener("blur", applyReverseDecode);
+      inputs.reverseHex.addEventListener("keydown", (event) => {
+        if (event.key === "Enter") {
+          applyReverseDecode();
+        }
+      });
       updateOutputs();
     </script>
   </body>
